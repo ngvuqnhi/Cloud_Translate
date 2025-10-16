@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đồ Án - Dịch Văn Bản</title>
+    <title>Đồ Án Nhóm 2 - Dịch Văn Bản</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -88,7 +88,51 @@
             margin-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+        }
+
+        .speak-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .speak-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        }
+
+        .speak-btn:active {
+            transform: scale(0.95);
+        }
+
+        .speak-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .speak-btn.speaking {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.15);
+            }
         }
 
         textarea {
@@ -173,11 +217,17 @@
             margin-bottom: 25px;
             transition: all 0.3s;
             cursor: pointer;
+            position: relative;
         }
 
         .upload-section:hover {
             border-color: #667eea;
             background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+        }
+
+        .upload-section.has-file {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-color: #6ee7b7;
         }
 
         .upload-section input {
@@ -214,11 +264,39 @@
             color: #6b7280;
         }
 
-        .file-name {
+        .file-info {
             margin-top: 10px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-name {
             font-size: 14px;
-            color: #667eea;
+            color: #059669;
             font-weight: 500;
+        }
+
+        .remove-file-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .remove-file-btn:hover {
+            background: #dc2626;
+            transform: scale(1.05);
         }
 
         .button-group {
@@ -368,14 +446,16 @@
         <div class="translation-box">
             <div class="input-section">
                 <div class="section-label">
-                    📝 Văn bản gốc
+                    <span>📝 Văn bản gốc</span>
+                    <button class="speak-btn" id="speakInput" onclick="speakText('input')" title="Phát âm" disabled>🔊</button>
                 </div>
                 <textarea id="inputText" placeholder="Nhập văn bản cần dịch..."></textarea>
             </div>
 
             <div class="output-section">
                 <div class="section-label">
-                    ✨ Bản dịch
+                    <span>✨ Bản dịch</span>
+                    <button class="speak-btn" id="speakOutput" onclick="speakText('output')" title="Phát âm bản dịch" disabled>🔊</button>
                 </div>
                 <div id="outputText" class="output-box empty">Kết quả dịch sẽ hiển thị ở đây...</div>
             </div>
@@ -415,14 +495,17 @@
             </select>
         </div>
 
-        <div class="upload-section" onclick="document.getElementById('imageInput').click()">
+        <div class="upload-section" id="uploadSection" onclick="triggerFileInput()">
             <input type="file" id="imageInput" accept="image/*">
             <label class="upload-label">
                 <div class="upload-icon">📷</div>
                 <div class="upload-text">Tải lên ảnh chứa văn bản</div>
                 <div class="upload-hint">Hỗ trợ JPG, PNG, WEBP (tối đa 10MB)</div>
             </label>
-            <div id="fileName" class="file-name"></div>
+            <div id="fileInfo" class="file-info">
+                <span id="fileName" class="file-name"></span>
+                <button class="remove-file-btn" onclick="removeFile(event)">✕ Xóa</button>
+            </div>
         </div>
 
         <div class="button-group">
@@ -441,15 +524,110 @@
 </div>
 
 <script>
+    // Map ngôn ngữ với voice code cho Web Speech API
+    const languageVoiceMap = {
+        'en': 'en-US',
+        'vi': 'vi-VN',
+        'fr': 'fr-FR',
+        'es': 'es-ES',
+        'de': 'de-DE',
+        'it': 'it-IT',
+        'pt': 'pt-PT',
+        'ru': 'ru-RU',
+        'ja': 'ja-JP',
+        'zh-cn': 'zh-CN',
+        'ko': 'ko-KR',
+        'ar': 'ar-SA',
+        'hi': 'hi-IN',
+        'th': 'th-TH',
+        'tr': 'tr-TR',
+        'id': 'id-ID',
+        'nl': 'nl-NL',
+        'pl': 'pl-PL',
+        'sv': 'sv-SE',
+        'uk': 'uk-UA',
+        'zh-tw': 'zh-TW',
+        'bn': 'bn-IN',
+        'el': 'el-GR',
+        'he': 'he-IL',
+        'fa': 'fa-IR',
+        'ur': 'ur-PK',
+        'ms': 'ms-MY',
+        'tl': 'tl-PH',
+        'cs': 'cs-CZ'
+    };
+
+    let currentSpeech = null;
+
+    // Bật/tắt nút phát âm khi có text
+    document.getElementById('inputText').addEventListener('input', function() {
+        document.getElementById('speakInput').disabled = !this.value.trim();
+    });
+
+    // Xử lý chọn file
     document.getElementById('imageInput').addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name;
-        const fileNameDiv = document.getElementById('fileName');
-        if (fileName) {
-            fileNameDiv.textContent = '✅ ' + fileName;
-        } else {
-            fileNameDiv.textContent = '';
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('fileName').textContent = '✅ ' + file.name;
+            document.getElementById('fileInfo').classList.add('show');
+            document.getElementById('uploadSection').classList.add('has-file');
         }
     });
+
+    function triggerFileInput() {
+        if (!document.getElementById('fileInfo').classList.contains('show')) {
+            document.getElementById('imageInput').click();
+        }
+    }
+
+    function removeFile(event) {
+        event.stopPropagation();
+        document.getElementById('imageInput').value = '';
+        document.getElementById('fileName').textContent = '';
+        document.getElementById('fileInfo').classList.remove('show');
+        document.getElementById('uploadSection').classList.remove('has-file');
+    }
+
+    function speakText(type) {
+        // Dừng speech hiện tại nếu có
+        if (currentSpeech) {
+            window.speechSynthesis.cancel();
+        }
+
+        const text = type === 'input'
+            ? document.getElementById('inputText').value
+            : document.getElementById('outputText').textContent;
+
+        if (!text || text === 'Kết quả dịch sẽ hiển thị ở đây...') {
+            return;
+        }
+
+        const language = document.getElementById('language').value;
+        const voiceLang = type === 'input' ? 'vi-VN' : languageVoiceMap[language];
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = voiceLang;
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+
+        const speakBtn = type === 'input' ? document.getElementById('speakInput') : document.getElementById('speakOutput');
+
+        speakBtn.classList.add('speaking');
+
+        utterance.onend = function() {
+            speakBtn.classList.remove('speaking');
+            currentSpeech = null;
+        };
+
+        utterance.onerror = function() {
+            speakBtn.classList.remove('speaking');
+            currentSpeech = null;
+            showResult('❌ Không thể phát âm ngôn ngữ này', 'error');
+        };
+
+        currentSpeech = utterance;
+        window.speechSynthesis.speak(utterance);
+    }
 
     function translateText() {
         const inputText = document.getElementById('inputText').value;
@@ -465,6 +643,7 @@
         showResult("⏳ Đang dịch...", 'loading');
         outputDiv.textContent = '';
         outputDiv.classList.add('empty');
+        document.getElementById('speakOutput').disabled = true;
 
         fetch('/Cloud_Translate/translate', {
             method: 'POST',
@@ -477,6 +656,7 @@
                     const translated = data.replace(/^✅ Translated to \w+: /, '');
                     outputDiv.textContent = translated;
                     outputDiv.classList.remove('empty');
+                    document.getElementById('speakOutput').disabled = false;
                     showResult(data, 'success');
                 } else {
                     showResult(data, 'error');
@@ -500,6 +680,7 @@
         showResult("⏳ Đang xử lý ảnh và dịch...", 'loading');
         outputDiv.textContent = '';
         outputDiv.classList.add('empty');
+        document.getElementById('speakOutput').disabled = true;
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -516,6 +697,7 @@
                         const translated = data.replace(/^✅ Translated to \w+: /, '');
                         outputDiv.textContent = translated;
                         outputDiv.classList.remove('empty');
+                        document.getElementById('speakOutput').disabled = false;
                         showResult(data, 'success');
                     } else {
                         showResult(data, 'error');
