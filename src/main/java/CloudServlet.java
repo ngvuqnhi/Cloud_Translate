@@ -19,7 +19,7 @@ import org.json.JSONArray;
 
 @WebServlet("/translate")
 public class CloudServlet extends HttpServlet {
-    private static final String API_KEY = "AIzaSyB1XxCdovgsNti_EJcI4t4mrM7Iu1kKShQ";
+    private static final String API_KEY = "hehe";
     private static final Map<String, String> LANGUAGE_CODES = new HashMap<>();
 
     static {
